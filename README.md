@@ -47,7 +47,7 @@ for detailed help on any specific command
    contain the settings used on last run, and it will start as it was prior to the restart.
    If not, the script will start with the same conditions as if you used the form:
 
-    SCRIPTNAME start config
+   SCRIPTNAME start config
 
    Request
    ____
