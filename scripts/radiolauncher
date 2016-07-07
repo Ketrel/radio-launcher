@@ -1,0 +1,304 @@
+#!/bin/bash
+
+action=${1:-"help"}
+subaction=${2}
+sdir="/path/to/stream/base/dir"
+sfile="filename-of-this-script"
+pidfile="${sdir}/pid/${sfile}.pid"
+saveconfig=1
+d_config="config-filename"
+d_finddir="${sdir}/path/to/music/to/generate/playlist/"
+d_title="Stream Title"
+d_desc="Stream Description"
+d_mode="randomize"
+
+case "${action}" in
+    start)
+        #Start Actions
+        startcheck=0
+        if [ ! -e "${pidfile}" ]; then
+            startcheck=1
+            echo "Check Passed: PID file does not exist."
+        else
+            pid=$(<"${pidfile}")
+            if [ ! -e "/proc/${pid}" ]; then
+                startcheck=1
+                echo "Check Passed: PID file exists, but process is not alive."
+            else
+                if [[ ! $(<"/proc/${pid}/cmdline") == "liquidsoap"* ]]; then
+                    startcheck=1
+                    echo "Check Passed: PID file exists, and process is alive, but process isn't us."
+                fi
+            fi
+        fi
+
+        if [ ${startcheck} == 1 ]; then
+
+            finddir=${2:-"${d_finddir}"}
+            title=${3:-"${d_title}"}
+            desc=${4:-"${d_desc}"}
+            mode=${5:-"${d_mode}"}
+            config=${3:-"${d_config}"}
+
+            if [ -e "${sdir}/config/${config}.cfg" ]; then
+                config="config/${config}.cfg"
+            else
+                config="${d_config}"
+            fi
+
+            if [ "${finddir}" = "config" ]; then
+
+                if [ ! -z ${3} ]; then
+                    sfilecfg=""
+                else
+                    sfilecfg="${sfile}"
+                fi
+
+                finddir=$(sed -n -E /"${sfilecfg}_finddir"'/s/[^"]*\"([^"]*).*/\1/p' "${sdir}/${config}")
+                [[ -z ${finddir} ]] && finddir=${d_finddir}
+
+                title=$(sed -n -E /"${sfilecfg}_title"'/s/[^"]*\"([^"]*).*/\1/p' "${sdir}/${config}")
+                [[ -z ${title} ]] && title=${d_title}
+
+                desc=$(sed -n -E /"${sfilecfg}_desc"'/s/[^"]*\"([^"]*).*/\1/p' "${sdir}/${config}")
+                [[ -z ${desc} ]] && desc=${d_desc}
+
+                mode=$(sed -n -E /"${sfilecfg}_mode"'/s/[^"]*\"([^"]*).*/\1/p' "${sdir}/${config}")
+                [[ -z ${mode} ]] && mode=${d_mode}
+            fi
+
+            #Let's remove any newlines from these variables before doing anything just in case of a bad config.
+            #   finddir is the most important one here to ensure has no new line characters
+            #   however, if writing to a config file, all are important.
+            #
+            #   (For finddir it should have already failed if it had a newline unless it was obtained from a bad config file)
+
+            finddir=${finddir//$'\n'}
+            title=${title//$'\n'}
+            desc=${desc//$'\n'}
+            mode=${mode//$'\n'}
+
+            if [ ${saveconfig} == 1 ]; then
+
+                if [ ! -e "${finddir}" ]; then
+                    echo "Error! Invalid Directory! Not Updating Config File"
+                    exit 2
+                else
+                    echo "Updating Config"
+                    sed -E -i "/^${sfile}_.*$/d" "${sdir}/${d_config}"
+                    printf "%s_finddir=\"%s\"\n" "${sfile}" "${finddir}" >>"${sdir}/${d_config}"
+                    printf "%s_title=\"%s\"\n" "${sfile}" "${title}" >>"${sdir}/${d_config}"
+                    printf "%s_desc=\"%s\"\n" "${sfile}" "${desc}" >>"${sdir}/${d_config}"
+                    printf "%s_mode=\"%s\"\n" "${sfile}" "${mode}" >>"${sdir}/${d_config}"
+                fi
+
+            fi
+
+            find "${finddir}" -mindepth 1 -type f ! -path '*/\.*' -path '*.mp3' | sort -b -f >"${sdir}/playlists/${sfile}.m3u8"
+
+            cp "${sdir}/dyn/${sfile}.li_" "${sdir}/liq/${sfile}.tmp"
+
+            sed -i "s/\"%sTsUB%\"/\"${title}\"/g" "${sdir}/liq/${sfile}.tmp"
+            sed -i "s/\"%sDsUB%\"/\"${desc}\"/g" "${sdir}/liq/${sfile}.tmp"
+            sed -i "s/\"%sRsUB%\"/\"${mode}\"/g" "${sdir}/liq/${sfile}.tmp"
+
+            if [ -e "${sdir}/liq/${sfile}.liq" ]; then
+                rm "${sdir}/liq/${sfile}.liq"
+            fi
+            mv "${sdir}/liq/${sfile}.tmp" "${sdir}/liq/${sfile}.liq"
+
+            echo "Starting Station"
+
+            liquidsoap "${sdir}/liq/${sfile}.liq" &
+            echo $! > "${sdir}/pid/${sfile}.pid"
+
+
+            echo "Correcting Permissions on Socket File"
+            sleep 3
+            chmod g+rw "${sdir}/${sfile}.sock"
+        else
+            echo "Can't Start. Already Running."
+        fi
+        ;;
+    stop)
+        #echo "Stop Actions"
+        if [ -e "${pidfile}" ]; then
+        #any shell
+        #pid=`cat /home/stream/pid/t2.pid`
+        #but I'm using bash specifically so
+
+        pid=$(<"${pidfile}")
+
+        #If PID File Exists and is liquidsoap (and launched by my script)
+        if [ -e "/proc/${pid}" ]; then
+            if [[ $(<"/proc/${pid}/cmdline") == "liquidsoap"* ]]; then
+                #It's killing time
+                echo "Stopping $pid"
+                kill "${pid}"
+                sleep 3
+                if [ ! -e "/proc/${pid}" ]; then
+                    echo "Removing PID file"
+                    rm "${pidfile}"
+                fi
+            else
+                echo "PID File Incorrect"
+                echo "Process ${pid} does not validate"
+                #Remove invalid PID file
+                rm "${pidfile}"
+            fi
+            else
+                echo "PID File Incorrect"
+                echo "Process ${pid} is not alive."
+                #Remove invalid PID file
+                rm "${pidfile}"
+            fi
+        else
+            echo "No PID File Found"
+            echo "Are you sure it's running?"
+        fi
+        ;;
+    restart)
+                echo "Restarting"
+                echo "First Stopping"
+                $0 stop
+                echo "Waiting A Moment"
+                sleep 2
+                echo "And Now...Starting"
+                $0 start config
+        ;;
+    configs)
+        echo
+        echo "Possible Config Options Are:"
+        find "${sdir}/config/" -type f -printf "%f\n" | sed -E 's/([^.]+)\.cfg/\1/' | sort
+        echo
+        ;;
+    skip)
+        #echo "Skip Actions"
+        echo "Skipping Current Song"
+        #nc localhost 10072 <<EOC
+        nc -U "${sdir}/${sfile}.sock" <<EOC >/dev/null
+${sfile}.skip
+quit
+EOC
+        ;;
+    request)
+        #echo "Request Actions"
+        song=${2}
+        echo "Requesting: $song"
+        #nc localhost 10072 <<EOC
+        nc -U "${sdir}/${sfile}.sock" <<EOC >/dev/null
+request.push ${song}
+quit
+EOC
+
+        ;;
+    status)
+        #Do Status Stuff
+        metadatatext=$(nc -U "${sdir}/${sfile}.sock" <<EOC
+${sfile}.metadata
+quit
+EOC
+)
+        printf "%s" "${metadatatext}"
+        ;;
+    *)
+        bn="$(basename "${0}")"
+        echo
+        printf "Usage: %s {start|stop|restart|request|skip|configs|help}" "${bn}"
+
+        if [ -z "${2}" ]; then
+            printf "\n_____\n\nYou can type: '%s help {start|stop|restart|request|skip|configs|help}'\nfor detailed help on any specific command" "${bn}"
+        fi
+
+        echo
+        #echo "Note: restarting does not regenerate the playlist."
+        echo
+        ;;&
+    help | --help | -h)
+        case "${subaction}" in
+            start)
+                echo "   Start"
+                echo "   _____"
+                echo
+                printf "   Usage:\n    %s start <path to music directory> <stream title> <stream description> {randomize|normal}\n\n" "${bn}"
+                echo "   Generates playlist of chosen directory, generates and then runs the 'liq' script."
+                echo "   If 'saveconfig' is set to 1 at the top of this script, the specified values will "
+                echo "   be stored in the default config file to allow for easy subsequent starts."
+                echo "   Additionally it corrects the permissions on the socket file to allow group usage."
+                echo
+                echo
+                printf "   Special Usage:\n    %s start config <config file (optional)>\n\n" "${bn}"
+                echo "   This this will use the chosen config file to generate the required setup (if the file exists)."
+                echo "   If the config file is omitted, the default config file will be used.  If neither exist, default"
+                echo "   values will be substitute."
+                echo
+            ;;
+            stop)
+                echo "   Stop"
+                echo "   ____"
+                echo
+                printf "   Usage:\n    %s stop\n\n" "${bn}"
+                echo "   Stops the associated liquidsoap instance if it's currently running."
+                echo
+            ;;
+            restart)
+                echo "   Restart"
+                echo "   ____"
+                echo
+                printf "   Usage:\n    %s restart\n\n" "${bn}"
+                echo "   Stops the associated liquidsoap instance if it's currently running."
+                echo "   Then starts it using the default config file.  If 'setconfig' is set to 1, then this will"
+                echo "   contain the settings used on last run, and it will start as it was prior to the restart."
+                echo "   If not, the script will start with the same conditions as if you used the form:"
+                echo
+                printf "    %s start config\n" "${bn}"
+                echo
+            ;;
+            request)
+                echo "   Request"
+                echo "   ____"
+                echo
+                printf "   Usage:\n    %s request <path to music file>\n\n" "${bn}"
+                echo "   This will connect to the socket for the associated liquidsoap instance, and submit a"
+                echo "   request based on the file specified."
+                echo
+            ;;
+            skip)
+                echo "   Skip"
+                echo "   ____"
+                echo
+                printf "   Usage:\n    %s skip\n\n" "${bn}"
+                echo "   This will connect to the socket for the associated liquidsoap instance, and will send"
+                echo "   a skip command for the current stream."
+                echo
+            ;;
+            configs)
+                echo "   Configs"
+                echo "   ____"
+                echo
+                printf "   Usage:\n    %s configs\n\n" "${bn}"
+                echo "   This will output a list of the available parameters for use with"
+                printf "    '%s start config <config file>'\n" "${bn}"
+                echo
+            ;;
+            help)
+                echo "             ███                            ███   "
+                echo "               ██                             ██  "
+                echo "               ██                             ██  "
+                echo "   █████████████                  █████████████   "
+                echo "    ███      ██                    ███      ██    "
+                echo "   ███         ██                 ██         ███  "
+                echo "   ██    ██    ██                 ██    ██    ██  "
+                echo "   ██    ██    ██                 ██    ██    ██  "
+                echo "   ███        ███                 ███        ███  "
+                echo "    ████    ████                   ████    ████   "
+                echo "      ████████                       ████████     "
+                echo
+                echo
+                echo "                  ███████████████                 "
+                echo
+            ;;
+        esac
+    ;;
+
+esac
