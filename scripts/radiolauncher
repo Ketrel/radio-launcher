@@ -10,7 +10,11 @@ d_config="config-filename"
 d_finddir="${sdir}/path/to/music/to/generate/playlist/"
 d_title="Stream Title"
 d_desc="Stream Description"
-d_mode="randomize"
+d_mode="randomize" #randomize or normal
+ic_url="icecast IP"
+ic_port="icecast port"
+ic_mount="icecast mountpoint"
+ic_pass="icecast password"
 
 case "${action}" in
     start)
@@ -96,11 +100,26 @@ case "${action}" in
 
             find "${finddir}" -mindepth 1 -type f ! -path '*/\.*' -path '*.mp3' | sort -b -f >"${sdir}/playlists/${sfile}.m3u8"
 
-            cp "${sdir}/dyn/${sfile}.li_" "${sdir}/liq/${sfile}.tmp"
+            cp "${sdir}/base/${sfile}.li_" "${sdir}/liq/${sfile}.tmp"
 
-            sed -i "s/\"%sTsUB%\"/\"${title}\"/g" "${sdir}/liq/${sfile}.tmp"
-            sed -i "s/\"%sDsUB%\"/\"${desc}\"/g" "${sdir}/liq/${sfile}.tmp"
-            sed -i "s/\"%sRsUB%\"/\"${mode}\"/g" "${sdir}/liq/${sfile}.tmp"
+            #Dynamic Variable Replacements
+            sed -i "s/\"_VAR_TITLE_\"/\"${title}\"/g" "${sdir}/liq/${sfile}.tmp"
+            sed -i "s/\"_VAR_DESCRIPTION_\"/\"${desc}\"/g" "${sdir}/liq/${sfile}.tmp"
+            sed -i "s/\"_VAR_MODE_\"/\"${mode}\"/g" "${sdir}/liq/${sfile}.tmp"
+            sed -i "s/\"_VAR_LOGPATH_\"/\"${sdir}/logs/${sfile}.log\"/g" "${sdir}/liq/${sfile}.tmp"
+            sed -i "s/\"_VAR_PLAYLIST_\"/\"${sdir}/playlists/${sfile}.m3u8\"/g" "${sdir}/liq/${sfile}.tmp"
+            sed -i "s/\"_VAR_SOCKPATH_\"/\"${sdir}/${sfile}.sock\"/g" "${sdir}/liq/${sfile}.tmp"
+            sed -i "s/\"_VAR_LOGDIR_\"/\"${sdir}/${sfile}.sock\"/g" "${sdir}/liq/${sfile}.tmp"
+            sed -i "s/\"_VAR_ERROR_SOUND_\"/\"${sdir}/static_error.mp3\"/g" "${sdir}/liq/${sfile}.tmp"
+
+            #Hardcoded Variable Replacements
+            sed -i "s/\"__URL__\"/\"${ic_url}\"/g" "${sdir}/liq/${sfile}.tmp"
+            sed -i "s/\"__PORT__\"/\"${ic_port}\"/g" "${sdir}/liq/${sfile}.tmp"
+            sed -i "s/\"__PASSWORD__\"/\"${ic_pass}\"/g" "${sdir}/liq/${sfile}.tmp"
+            sed -i "s/\"__MOUNTPOINT__\"/\"${ic_mount}\"/g" "${sdir}/liq/${sfile}.tmp"
+
+
+
 
             if [ -e "${sdir}/liq/${sfile}.liq" ]; then
                 rm "${sdir}/liq/${sfile}.liq"
@@ -282,20 +301,20 @@ EOC
                 echo
             ;;
             help)
-                echo "             ███                            ███   "
-                echo "               ██                             ██  "
-                echo "               ██                             ██  "
-                echo "   █████████████                  █████████████   "
-                echo "    ███      ██                    ███      ██    "
-                echo "   ███         ██                 ██         ███  "
-                echo "   ██    ██    ██                 ██    ██    ██  "
-                echo "   ██    ██    ██                 ██    ██    ██  "
-                echo "   ███        ███                 ███        ███  "
-                echo "    ████    ████                   ████    ████   "
-                echo "      ████████                       ████████     "
+                echo "             ¦¦¦                            ¦¦¦   "
+                echo "               ¦¦                             ¦¦  "
+                echo "               ¦¦                             ¦¦  "
+                echo "   ¦¦¦¦¦¦¦¦¦¦¦¦¦                  ¦¦¦¦¦¦¦¦¦¦¦¦¦   "
+                echo "    ¦¦¦      ¦¦                    ¦¦¦      ¦¦    "
+                echo "   ¦¦¦         ¦¦                 ¦¦         ¦¦¦  "
+                echo "   ¦¦    ¦¦    ¦¦                 ¦¦    ¦¦    ¦¦  "
+                echo "   ¦¦    ¦¦    ¦¦                 ¦¦    ¦¦    ¦¦  "
+                echo "   ¦¦¦        ¦¦¦                 ¦¦¦        ¦¦¦  "
+                echo "    ¦¦¦¦    ¦¦¦¦                   ¦¦¦¦    ¦¦¦¦   "
+                echo "      ¦¦¦¦¦¦¦¦                       ¦¦¦¦¦¦¦¦     "
                 echo
                 echo
-                echo "                  ███████████████                 "
+                echo "                  ¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦                 "
                 echo
             ;;
         esac
