@@ -1,0 +1,43 @@
+#!/usr/bin/liquidsoap
+
+# Custom Variables for Stream
+stitle = interactive.string("title","_VAR_TITLE_")
+sdesc = interactive.string("description","_VAR_DESCRIPTION_")
+
+# Change settings
+#  Log Location
+set("log.file.path","_VAR_LOGPATH_")
+set("log.file",false)
+
+#  Telnet
+#set("server.telnet",true)
+#set("server.telnet.bind_addr","0.0.0.0")
+#set("server.telnet.port",10072)
+set("server.socket",true)
+set("server.socket.path","_VAR_SOCKPATH_")
+
+# Music
+list = audio_to_stereo(playlist(
+ mode="_VAR",
+ "_VAR_PLAYLIST_"))
+
+# Requests
+requests = request.queue(id="request")
+
+# Error Sound
+err = audio_to_stereo(single("_VAR_ERROR_SOUND_"))
+
+# Make the 'Playlist'
+plist = fallback([requests,list,err])
+
+# Output It
+output.icecast(
+ %mp3(bitrate=64),
+ name=stitle(),
+ description=sdesc(),
+ url="__URL__",
+ mount="__MOUNTPOINT__",
+ host="127.0.0.1",
+ port=__PORT__,
+ password="__PASSWORD__",
+ plist)
