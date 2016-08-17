@@ -128,13 +128,13 @@ case "${action}" in
 
             echo "Starting Station"
 
-            echo liquidsoap \"${sdir}/liq/${sfile}.liq\" \&
-            echo \"\$1 > ${sdir}/pid/${sfile}.pid\"
+            liquidsoap "${sdir}/liq/${sfile}.liq" &
+            echo $! > "${sdir}/pid/${sfile}.pid"
 
 
             echo "Correcting Permissions on Socket File"
             sleep 3
-            echo chmod g+rw \"${sdir}/${sfile}.sock\"
+            chmod g+rw "${sdir}/${sfile}.sock"
         else
             echo "Can't Start. Already Running."
         fi
@@ -153,23 +153,23 @@ case "${action}" in
             if [[ $(<"/proc/${pid}/cmdline") == "liquidsoap"* ]]; then
                 #It's killing time
                 echo "Stopping $pid"
-                echo kill "${pid}"
+                kill "${pid}"
                 sleep 3
                 if [ ! -e "/proc/${pid}" ]; then
                     echo "Removing PID file"
-                    echo rm \"${pidfile}\"
+                    rm "${pidfile}"
                 fi
             else
                 echo "PID File Incorrect"
                 echo "Process ${pid} does not validate"
                 #Remove invalid PID file
-                echo rm \"${pidfile}\"
+                rm "${pidfile}"
             fi
             else
                 echo "PID File Incorrect"
                 echo "Process ${pid} is not alive."
                 #Remove invalid PID file
-                echo rm \"${pidfile}\"
+                rm "${pidfile}"
             fi
         else
             echo "No PID File Found"
@@ -179,11 +179,11 @@ case "${action}" in
     restart)
                 echo "Restarting"
                 echo "First Stopping"
-                echo \$0 stop
+                $0 stop
                 echo "Waiting A Moment"
                 sleep 2
                 echo "And Now...Starting"
-                echo \$0 start config
+                $0 start config
         ;;
     configs)
         echo
