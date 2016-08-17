@@ -18,7 +18,7 @@ set("server.socket.path","_VAR_SOCKPATH_")
 
 # Music
 list = audio_to_stereo(playlist(
- mode="_VAR",
+ mode="_VAR_MODE_",
  "_VAR_PLAYLIST_"))
 
 # Requests
