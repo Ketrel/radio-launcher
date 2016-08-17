@@ -58,7 +58,10 @@ case "${action}" in
                     sfilecfg="${sfile}"
                 fi
 
+                #Because I will forget
+                # sed -n(silent) -E(same as -r, extended regex) /match line/s/search text/replacment/p(print) file
                 finddir=$(sed -n -E /"${sfilecfg}_finddir"'/s/[^"]*\"([^"]*).*/\1/p' "${sdir}/${config}")
+                #if zero length for the variable above (aka sed found nada), TRUE && assign my default
                 [[ -z ${finddir} ]] && finddir=${d_finddir}
 
                 title=$(sed -n -E /"${sfilecfg}_title"'/s/[^"]*\"([^"]*).*/\1/p' "${sdir}/${config}")
@@ -98,9 +101,16 @@ case "${action}" in
 
             fi
 
+            #This line, this is the magic
+            #Search the directory, at least one folder deep (Adding a max option eventually), files only,
+            # remove . and anything beginning with . only mp3, sort (ignoring leading blanks) (and ignoring case)
+            # then dump the listing (which should contain full paths to each file) to an m3u8 file which we use as our playlist
             find "${finddir}" -mindepth 1 -type f ! -path '*/\.*' -path '*.mp3' | sort -b -f >"${sdir}/playlists/${sfile}.m3u8"
 
             cp "${sdir}/base/${sfile}.li_" "${sdir}/liq/${sfile}.tmp"
+
+            #For the below parts, paths tend to fuck with sed if I use / delimiters without escaping the / in the paths
+            #Since this is hard when its a variable...., lets just avoid the issue entirely and use # as the delimiter
 
             #Dynamic Variable Replacements
             sed -i "s#_VAR_TITLE_#${title}#g" "${sdir}/liq/${sfile}.tmp"
@@ -120,7 +130,9 @@ case "${action}" in
 
 
 
-
+            #We just spent a good deal of time creating our perfect liq file.
+            #It's be a shame if one already exists of the same name, lets nuke it if it exists
+            #Before we move our temp file into place
             if [ -e "${sdir}/liq/${sfile}.liq" ]; then
                 rm "${sdir}/liq/${sfile}.liq"
             fi
@@ -128,10 +140,15 @@ case "${action}" in
 
             echo "Starting Station"
 
+            #Start er up, and log the PID to a file
             liquidsoap "${sdir}/liq/${sfile}.liq" &
             echo $! > "${sdir}/pid/${sfile}.pid"
 
 
+            #Liquidsoap should be configured to use a socket for listening for commands
+            # Now, we're also running a PHP interface (outside the scope of this script)
+            # But lets make it easy on everyone
+            # Using setguid on the directory creates the socket for the PHP group, BUT, we need to give group read/write access
             echo "Correcting Permissions on Socket File"
             sleep 3
             chmod g+rw "${sdir}/${sfile}.sock"
@@ -149,6 +166,8 @@ case "${action}" in
         pid=$(<"${pidfile}")
 
         #If PID File Exists and is liquidsoap (and launched by my script)
+        #Seriously, how bad would it be if we killed the wrong thing?
+        #Speaking of which, has anyone seen Kenny?
         if [ -e "/proc/${pid}" ]; then
             if [[ $(<"/proc/${pid}/cmdline") == "liquidsoap"* ]]; then
                 #It's killing time
@@ -191,6 +210,8 @@ case "${action}" in
         find "${sdir}/config/" -type f -printf "%f\n" | sed -E 's/([^.]+)\.cfg/\1/' | sort
         echo
         ;;
+
+    #All of these below ones (not including the help...duh) require netcat to interact with the socket
     skip)
         #echo "Skip Actions"
         echo "Skipping Current Song"
@@ -235,7 +256,7 @@ EOC
         ;;&
     help | --help | -h)
         case "${subaction}" in
-            start)
+            start | all)
                 echo "   Start"
                 echo "   _____"
                 echo
@@ -251,16 +272,16 @@ EOC
                 echo "   If the config file is omitted, the default config file will be used.  If neither exist, default"
                 echo "   values will be substitute."
                 echo
-            ;;
-            stop)
+            ;;&
+            stop | all)
                 echo "   Stop"
                 echo "   ____"
                 echo
                 printf "   Usage:\n    %s stop\n\n" "${bn}"
                 echo "   Stops the associated liquidsoap instance if it's currently running."
                 echo
-            ;;
-            restart)
+            ;;&
+            restart | all)
                 echo "   Restart"
                 echo "   ____"
                 echo
@@ -272,8 +293,8 @@ EOC
                 echo
                 printf "    %s start config\n" "${bn}"
                 echo
-            ;;
-            request)
+            ;;&
+            request | all)
                 echo "   Request"
                 echo "   ____"
                 echo
@@ -281,8 +302,8 @@ EOC
                 echo "   This will connect to the socket for the associated liquidsoap instance, and submit a"
                 echo "   request based on the file specified."
                 echo
-            ;;
-            skip)
+            ;;&
+            skip | all)
                 echo "   Skip"
                 echo "   ____"
                 echo
@@ -290,8 +311,8 @@ EOC
                 echo "   This will connect to the socket for the associated liquidsoap instance, and will send"
                 echo "   a skip command for the current stream."
                 echo
-            ;;
-            configs)
+            ;;&
+            configs | all)
                 echo "   Configs"
                 echo "   ____"
                 echo
@@ -299,7 +320,7 @@ EOC
                 echo "   This will output a list of the available parameters for use with"
                 printf "    '%s start config <config file>'\n" "${bn}"
                 echo
-            ;;
+            ;;&
             help)
                 echo "             ███                            ███   "
                 echo "               ██                             ██  "
