@@ -13,7 +13,7 @@ for detailed help on any specific command
    _____
 
    Usage:
-    SCRIPTNAME start <path to music directory> <stream title> <stream description> {randomize|normal}
+    SCRIPTNAME start \<path to music directory\> \<stream title\> \<stream description\> {randomize|normal}
 
    Generates playlist of chosen directory, generates and then runs the 'liq' script.
    If 'saveconfig' is set to 1 at the top of this script, the specified values will
@@ -22,7 +22,7 @@ for detailed help on any specific command
 
 
    Special Usage:
-    SCRIPTNAME start config <config file (optional)>
+    SCRIPTNAME start config \<config file (optional)\>
 
    This this will use the chosen config file to generate the required setup (if the file exists).
    If the config file is omitted, the default config file will be used.  If neither exist, default
@@ -53,7 +53,7 @@ for detailed help on any specific command
    ____
 
    Usage:
-    SCRIPTNAME request <path to music file>
+    SCRIPTNAME request \<path to music file\>
 
    This will connect to the socket for the associated liquidsoap instance, and submit a
    request based on the file specified.
