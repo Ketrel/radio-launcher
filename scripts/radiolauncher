@@ -119,7 +119,7 @@ case "${action}" in
             sed -i "s#_VAR_LOGPATH_#${sdir}/logs/${sfile}.log#g" "${sdir}/liq/${sfile}.tmp"
             sed -i "s#_VAR_PLAYLIST_#${sdir}/playlists/${sfile}.m3u8#g" "${sdir}/liq/${sfile}.tmp"
             sed -i "s#_VAR_SOCKPATH_#${sdir}/${sfile}.sock#g" "${sdir}/liq/${sfile}.tmp"
-            sed -i "s#_VAR_LOGDIR_#${sdir}/${sfile}.sock#g" "${sdir}/liq/${sfile}.tmp"
+            #sed -i "s#_VAR_LOGDIR_#${sdir}/${sfile}.sock#g" "${sdir}/liq/${sfile}.tmp"
             sed -i "s#_VAR_ERROR_SOUND_#${sdir}/static_error.mp3#g" "${sdir}/liq/${sfile}.tmp"
 
             #Hardcoded Variable Replacements
