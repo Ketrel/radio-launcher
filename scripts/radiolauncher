@@ -232,6 +232,13 @@ quit
 EOC
 
         ;;
+    requestSkip)
+        echo "Sending Request"
+        $0 request "${2}"
+        sleep 2
+        echo "Sending Skip"
+        $0 skip
+        ;;
     status)
         #Do Status Stuff
         metadatatext=$(nc -U "${sdir}/${sfile}.sock" <<EOC
