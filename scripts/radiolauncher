@@ -141,8 +141,11 @@ case "${action}" in
             echo "Starting Station"
 
             #Start er up, and log the PID to a file
-            liquidsoap "${sdir}/liq/${sfile}.liq" &
-            echo $! > "${sdir}/pid/${sfile}.pid"
+            #liquidsoap "${sdir}/liq/${sfile}.liq" &
+            #echo $! > "${sdir}/pid/${sfile}.pid"
+            
+            #This way seems to work better when launched by PHP (which is useful since I also have a web based control)
+            /bin/sh -c "echo \$\$ > \"${sdir}/pid/${sfile}.pid\" && exec liquidsoap \"${sdir}/liq/${sfile}.liq\" >/dev/null 2>&1 || rm \"${sdir}/pid/{$sfile}.pid\"" &
 
 
             #Liquidsoap should be configured to use a socket for listening for commands
